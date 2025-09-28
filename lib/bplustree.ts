@@ -163,7 +163,7 @@ class BPlusTree {
 
     this.insertIntoLeaf(leaf, key, value);
 
-    if (leaf.keys.length >= this.order) {
+    if (leaf.keys.length > this.order) {
       this.splitLeaf(leaf, steps);
     }
   }
@@ -176,7 +176,7 @@ class BPlusTree {
   }
 
   private splitLeaf(leaf: LeafNode, steps?: AnimationStep[]) {
-    const midIndex = Math.ceil(this.order / 2);
+    const midIndex = Math.ceil(leaf.keys.length / 2);
 
     const newKeys = leaf.keys.splice(midIndex);
     const newValues = leaf.values.splice(midIndex);
@@ -209,7 +209,7 @@ class BPlusTree {
     }
 
     const childIndex = parent.children.indexOf(leftNode);
-    parent.keys.splice(childIndex + 1, 0, key);
+    parent.keys.splice(childIndex, 0, key);
     parent.children.splice(childIndex + 1, 0, rightNode);
     rightNode.parent = parent;
     
