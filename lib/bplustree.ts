@@ -259,8 +259,8 @@ class BPlusTree {
       return steps;
   }
 
-  private findLeaf(key: number, steps?: AnimationStep[]): LeafNode {
-      if (!this.root) return null!;
+  private findLeaf(key: number, steps?: AnimationStep[]): LeafNode | null {
+      if (!this.root) return null;
       let node = this.root;
       const pathIds = [this.root.id];
       if (steps) this.addStep(steps, this.root, 'start', `Searching for key ${key} to delete.`, { nodes: pathIds });
@@ -282,18 +282,38 @@ class BPlusTree {
     if (!this.root) return false;
     
     const leaf = this.findLeaf(key);
+    if (!leaf) return false;
     const keyIndex = leaf.keys.indexOf(key);
     if (keyIndex === -1) return false;
 
     leaf.keys.splice(keyIndex, 1);
     leaf.values.splice(keyIndex, 1);
 
+    if (keyIndex === 0 && leaf !== this.root && leaf.parent && leaf.keys.length > 0) {
+      const newFirstKey = leaf.keys[0];
+      let ancestor = leaf.parent;
+      while(ancestor) {
+          const keyIdx = ancestor.keys.indexOf(key);
+          if (keyIdx !== -1) {
+              ancestor.keys[keyIdx] = newFirstKey;
+              if (steps) {
+                this.addStep(steps, this.root, 'update-parent', `Updating ancestor separator key to ${newFirstKey}.`, { 
+                  nodes: [ancestor.id], 
+                  keys: [{ nodeId: ancestor.id, keyIndex: keyIdx }] 
+                });
+              }
+              break; // Key updated, exit loop
+          }
+          ancestor = ancestor.parent;
+      }
+    }
+
     if (leaf === this.root) {
         if (leaf.keys.length === 0) this.root = null;
         return true;
     }
 
-    if (leaf.keys.length < this.getMinKeys(leaf) + 1) {
+    if (leaf.keys.length < this.minLeafKeys) {
         this.handleUnderflow(leaf, steps);
     }
     return true;
@@ -317,7 +337,11 @@ class BPlusTree {
     // Borrow from left
     if (nodeIndex > 0) {
         const leftSibling = parent.children[nodeIndex - 1];
-        if (leftSibling.keys.length > this.getMinKeys(leftSibling) + 1) {
+        const canBorrow = isLeafNode(leftSibling)
+            ? leftSibling.keys.length > this.minLeafKeys
+            : leftSibling.keys.length > this.minKeys;
+
+        if (canBorrow) {
             this.borrowFromLeft(node, leftSibling, parent, nodeIndex, steps);
             return;
         }
@@ -325,7 +349,10 @@ class BPlusTree {
     // Borrow from right
     if (nodeIndex < parent.children.length - 1) {
         const rightSibling = parent.children[nodeIndex + 1];
-        if (rightSibling.keys.length > this.getMinKeys(rightSibling) + 1) {
+        const canBorrow = isLeafNode(rightSibling)
+            ? rightSibling.keys.length > this.minLeafKeys
+            : rightSibling.keys.length > this.minKeys;
+        if (canBorrow) {
             this.borrowFromRight(node, rightSibling, parent, nodeIndex, steps);
             return;
         }
