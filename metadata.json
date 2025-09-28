@@ -1,0 +1,5 @@
+{
+  "name": "b-plus-tree-visualizer",
+  "description": "An interactive web application to visualize and understand the operations of a B+ Tree data structure.",
+  "requestFramePermissions": []
+}
